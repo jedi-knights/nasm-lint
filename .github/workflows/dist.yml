@@ -1,0 +1,47 @@
+name: Dist
+
+# Phase 2 of the release pipeline. Triggered by the `v*` tag that
+# go-semantic-release pushes (see release.yml). Each matrix target cross-compiles
+# both binaries (nasmlint, nasmlint-lsp), archives them with a sha256 checksum, and
+# creates/updates the GitHub Release for that tag with the assets attached. The
+# composite action (action.yml) downloads the archive matching its runner.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  dist:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build and upload binaries
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: nasmlint,nasmlint-lsp
+          target: ${{ matrix.target }}
+          # Archive name the composite action downloads: nasm-lint-<target>.tar.gz
+          # (.zip on Windows). Bundle the license alongside the binaries.
+          archive: nasm-lint-$target
+          include: LICENSE,THIRD_PARTY_LICENSES
+          checksum: sha256
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -4,6 +4,7 @@ A static code analysis tool (linter) for NASM assembly — CLI, editor language 
 
 [![CI](https://github.com/jedi-knights/nasm-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jedi-knights/nasm-lint/actions/workflows/ci.yml)
 [![Release](https://github.com/jedi-knights/nasm-lint/actions/workflows/release.yml/badge.svg)](https://github.com/jedi-knights/nasm-lint/actions/workflows/release.yml)
+[![Dist](https://github.com/jedi-knights/nasm-lint/actions/workflows/dist.yml/badge.svg)](https://github.com/jedi-knights/nasm-lint/actions/workflows/dist.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 

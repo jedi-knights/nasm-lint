@@ -1,46 +1,39 @@
 name: Release
 
-# Cut a release by pushing a tag like `v0.1.0`. Each matrix target cross-compiles
-# both binaries (nasmlint, nasmlint-lsp), archives them with a sha256 checksum, and
-# uploads them to the GitHub Release for that tag. The composite action
-# (action.yml) downloads the archive matching the runner it executes on.
+# Phase 1 of the release pipeline. After CI passes on main, go-semantic-release
+# analyzes the conventional commits since the last tag to decide whether a release
+# is warranted; if so it computes the next semantic version, writes CHANGELOG.md
+# and VERSION, commits them back to main with [skip ci], and pushes a `v*` tag.
+#
+# The push is authenticated with the GH_TOKEN PAT (not the default GITHUB_TOKEN) so
+# the resulting tag actually triggers the Dist workflow (dist.yml) — tags pushed by
+# GITHUB_TOKEN do not trigger further workflow runs.
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-13
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v5
-
-      - name: Build and upload binaries
-        uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: nasmlint,nasmlint-lsp
-          target: ${{ matrix.target }}
-          # Archive name the composite action downloads: nasm-lint-<target>.tar.gz
-          # (.zip on Windows). Bundle the license alongside the binaries.
-          archive: nasm-lint-$target
-          include: LICENSE,THIRD_PARTY_LICENSES
-          checksum: sha256
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "semantic-release-bot"
+          git config --global user.email "semantic-release-bot@users.noreply.github.com"
+
+      - uses: jedi-knights/go-semantic-release@v0
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
