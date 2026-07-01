@@ -1,0 +1,101 @@
+name: "nasm-lint"
+description: "Static analysis for NASM assembly — reports findings and can emit SARIF for code scanning."
+author: "Jedi Knights"
+
+branding:
+  icon: "check-circle"
+  color: "purple"
+
+inputs:
+  paths:
+    description: "Files or directories to analyze (space-separated)."
+    required: false
+    default: "."
+  version:
+    description: "Release tag of nasm-lint to use (e.g. v0.1.0), or 'latest'."
+    required: false
+    default: "latest"
+  format:
+    description: "Output format: human, json, or sarif."
+    required: false
+    default: "sarif"
+  severity-threshold:
+    description: "Fail the action when a finding is at least this severe: must-fix, should-fix, or consider."
+    required: false
+    default: "must-fix"
+  output:
+    description: "File to write SARIF/JSON output to (used when format is sarif or json)."
+    required: false
+    default: "results.sarif"
+  working-directory:
+    description: "Directory to run the analysis in."
+    required: false
+    default: "."
+
+outputs:
+  results-file:
+    description: "Path to the written output file (when format is sarif or json)."
+    value: ${{ inputs.output }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run nasm-lint
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        NL_REPO: "jedi-knights/nasm-lint"
+        NL_VERSION: ${{ inputs.version }}
+        NL_PATHS: ${{ inputs.paths }}
+        NL_FORMAT: ${{ inputs.format }}
+        NL_THRESHOLD: ${{ inputs.severity-threshold }}
+        NL_OUTPUT: ${{ inputs.output }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        # Resolve the release tag.
+        version="$NL_VERSION"
+        if [ "$version" = "latest" ]; then
+          version="$(gh release view --repo "$NL_REPO" --json tagName -q .tagName)"
+        fi
+
+        # Map the runner to a release asset (target triple + archive format).
+        case "$RUNNER_OS" in
+          Linux)   os="unknown-linux-musl"; ext="tar.gz"; bin="nasmlint" ;;
+          macOS)   os="apple-darwin";       ext="tar.gz"; bin="nasmlint" ;;
+          Windows) os="pc-windows-msvc";    ext="zip";    bin="nasmlint.exe" ;;
+          *) echo "::error::unsupported runner OS: $RUNNER_OS"; exit 1 ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64)   arch="x86_64" ;;
+          ARM64) arch="aarch64" ;;
+          *) echo "::error::unsupported runner arch: $RUNNER_ARCH"; exit 1 ;;
+        esac
+        asset="nasm-lint-${arch}-${os}.${ext}"
+
+        # Download and unpack into a temp dir, then locate the binary.
+        work="$(mktemp -d)"
+        gh release download "$version" --repo "$NL_REPO" --pattern "$asset" --dir "$work"
+        if [ "$ext" = "zip" ]; then
+          unzip -o "$work/$asset" -d "$work" >/dev/null
+        else
+          tar -xzf "$work/$asset" -C "$work"
+        fi
+        binpath="$(find "$work" -name "$bin" -type f | head -n 1)"
+        if [ -z "$binpath" ]; then
+          echo "::error::could not find $bin in $asset"; exit 1
+        fi
+        chmod +x "$binpath" || true
+
+        # Run. For sarif/json, write to the output file so a follow-up step can
+        # upload it; the exit code still reflects the severity threshold, so pair
+        # the upload step with `if: always()` when you want findings uploaded.
+        rc=0
+        if [ "$NL_FORMAT" = "sarif" ] || [ "$NL_FORMAT" = "json" ]; then
+          "$binpath" --format "$NL_FORMAT" --max-severity "$NL_THRESHOLD" $NL_PATHS > "$NL_OUTPUT" || rc=$?
+          echo "nasm-lint wrote $NL_FORMAT output to $NL_OUTPUT"
+        else
+          "$binpath" --format "$NL_FORMAT" --max-severity "$NL_THRESHOLD" $NL_PATHS || rc=$?
+        fi
+        exit "$rc"
