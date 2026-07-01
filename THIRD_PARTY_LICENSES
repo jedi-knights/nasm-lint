@@ -9,10 +9,11 @@ that applies to nasm-lint's own source code (see LICENSE).
 NASM instruction table (`insns.dat`)  [vendored at milestone M3]
 --------------------------------------------------------------------------------
 Source : https://www.nasm.us/  (The Netwide Assembler)
-Version: <pin the exact NASM release when vendoring, e.g. 3.02>
+         x86/insns.dat from tag nasm-3.02
+Version: NASM 3.02
 License: BSD 2-Clause "Simplified" License
 
-Copyright 1996-2026 the NASM Authors — All rights reserved.
+Copyright 1996-2025 The NASM Authors — All Rights Reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

@@ -17,6 +17,7 @@
 use crate::analysis::Analysis;
 use crate::diagnostics::{Diagnostic, Severity};
 
+mod instructions;
 mod labels;
 mod preprocessor;
 mod sections;
@@ -40,6 +41,8 @@ pub fn builtin_rules() -> Vec<Box<dyn Rule>> {
         Box::new(preprocessor::BlockBalance),
         Box::new(preprocessor::UnusedMacro),
         Box::new(sections::CodeBeforeSection),
+        Box::new(instructions::UnknownMnemonic),
+        Box::new(instructions::OperandCount),
         Box::new(style::MixedIndentation),
         Box::new(style::TrailingWhitespace),
     ]
@@ -118,6 +121,18 @@ pub fn catalog() -> &'static [RuleInfo] {
             name: "code-before-section",
             description: "Code or data appears before any `section` directive.",
             default_severity: ShouldFix,
+        },
+        RuleInfo {
+            code: "NL030",
+            name: "unknown-mnemonic",
+            description: "Instruction mnemonic is not recognized by NASM.",
+            default_severity: MustFix,
+        },
+        RuleInfo {
+            code: "NL031",
+            name: "operand-count",
+            description: "Instruction used with an operand count it never accepts.",
+            default_severity: MustFix,
         },
         RuleInfo {
             code: "NL050",
