@@ -3,6 +3,7 @@
 A static code analysis tool (linter) for NASM assembly — CLI, editor language server, and GitHub Action with SARIF output.
 
 [![CI](https://github.com/jedi-knights/nasm-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jedi-knights/nasm-lint/actions/workflows/ci.yml)
+[![Release](https://github.com/jedi-knights/nasm-lint/actions/workflows/release.yml/badge.svg)](https://github.com/jedi-knights/nasm-lint/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 
@@ -113,18 +114,26 @@ src/boot.asm:7:15: consider [NL053] trailing whitespace
 
 ### GitHub Action
 
-The composite action is planned for M6. It will run the linter and emit SARIF so
-findings appear as inline pull-request annotations:
+Run the linter in CI and upload SARIF so findings appear as inline pull-request
+annotations and in the Security tab. The action downloads the prebuilt binary for
+the runner (Linux, macOS, or Windows) from a tagged release.
 
 ```yaml
 - uses: jedi-knights/nasm-lint@v1
   with:
-    paths: src/
-    format: sarif
+    paths: src/            # files/dirs to scan (default: ".")
+    format: sarif          # human | json | sarif (default: sarif)
+    severity-threshold: must-fix   # fail at/above this severity (default: must-fix)
+    output: results.sarif  # where sarif/json is written
 - uses: github/codeql-action/upload-sarif@v3
+  if: always()             # upload findings even when the lint step failed
   with:
     sarif_file: results.sarif
 ```
+
+The action's exit code reflects `severity-threshold`, so pair the upload step with
+`if: always()` when you want SARIF uploaded even on a failing run. Release binaries
+and this action are published per tag by `.github/workflows/release.yml`.
 
 ### Editor language server
 
