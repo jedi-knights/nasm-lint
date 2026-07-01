@@ -1,44 +1,38 @@
 # nasm-lint
 
+A static code analysis tool (linter) for NASM assembly — CLI, editor language server, and GitHub Action with SARIF output.
+
 [![CI](https://github.com/jedi-knights/nasm-lint/actions/workflows/ci.yml/badge.svg)](https://github.com/jedi-knights/nasm-lint/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 
-A static code analysis tool (linter) for [NASM](https://www.nasm.us/) assembly. It
-scans `.asm` source and reports correctness and style problems — usable as a
-command-line tool, an editor language server, and an official GitHub Action that
-annotates pull requests via SARIF.
+## Table of Contents
 
-> **Scope:** the NASM dialect only (not GAS or MASM), targeting x86 / x86-64.
-
-## Table of contents
-
-- [Why](#why)
+- [Overview](#overview)
 - [Features](#features)
 - [Status](#status)
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Command line](#command-line)
-  - [GitHub Action](#github-action)
-  - [Editor (LSP)](#editor-lsp)
 - [Configuration](#configuration)
 - [Severity model](#severity-model)
 - [Rule catalog](#rule-catalog)
 - [How it works](#how-it-works)
-- [Roadmap](#roadmap)
 - [Development](#development)
+- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
 
-## Why
+## Overview
 
 NASM is line-oriented with a well-defined lexical structure, which makes it a good
 target for static analysis — yet there is no widely-used linter for it. `nasm-lint`
 fills that gap, giving NASM projects the kind of automated, reviewable feedback that
 clippy and ruff give Rust and Python: catch undefined labels, unbalanced
 preprocessor blocks, suspicious instructions, and style drift before they reach a
-build or a code review.
+build or a code review. It targets the NASM dialect only (not GAS or MASM), for
+x86 / x86-64.
 
 ## Features
 
@@ -52,15 +46,21 @@ build or a code review.
 - **Control-flow analysis** *(planned, M4)* — dead code, stack push/pop balance.
 - **Configurable** — enable/disable rules and override severities via
   `.nasmlint.toml`.
-- **CI-native output** — human, JSON, and **SARIF 2.1.0** for GitHub code scanning.
+- **CI-native output** — human, JSON, and SARIF 2.1.0 for GitHub code scanning.
 
 ## Status
 
 Early development. The analysis engine, configuration, output renderers, and the
 lexer/parser/symbol front end are in place; the full rule catalog, instruction
 validation, control-flow analysis, and the language server are being built out
-milestone by milestone (see [Roadmap](#roadmap) and `TODO.md`). Interfaces and rule
-codes are stabilizing but may still change before `1.0`.
+milestone by milestone (see [Roadmap](#roadmap) and the `TODO.md` file). Interfaces
+and rule codes are stabilizing but may still change before `1.0`.
+
+## Requirements
+
+- **Rust** 1.85 or newer (2021 edition) and Cargo — to build or install from source.
+- **NASM** — optional, and only for the planned `--preprocess` mode that shells out
+  to `nasm -E`. The linter itself does not require NASM to be installed.
 
 ## Installation
 
@@ -84,7 +84,7 @@ planned for the `1.0` release.
 
 ## Usage
 
-### Command line
+Lint a file, a directory, or the current directory:
 
 ```bash
 nasmlint path/to/file.asm      # lint one file
@@ -92,18 +92,18 @@ nasmlint src/                  # walk a directory for .asm/.nasm/.s/.inc
 nasmlint                       # lint the current directory
 ```
 
-```
-nasmlint [PATHS]...
-  --format human|json|sarif    Output format (default: human)
-  --config <FILE>              Config file (default: ./.nasmlint.toml)
+Flags:
+
+```bash
+nasmlint [PATHS]... \
+  --format human|json|sarif \
+  --config ./.nasmlint.toml \
   --max-severity must-fix|should-fix|consider
-                               Exit non-zero when any finding is at least this
-                               severe (default: must-fix)
 ```
 
 Example output:
 
-```
+```text
 src/boot.asm:12:5: must-fix [NL001] undefined label `_strat`
 src/boot.asm:40:1: should-fix [NL010] unbalanced %macro without %endmacro
 src/boot.asm:7:15: consider [NL053] trailing whitespace
@@ -113,8 +113,8 @@ src/boot.asm:7:15: consider [NL053] trailing whitespace
 
 ### GitHub Action
 
-*(Planned, M6.)* Add the linter as a step and upload its SARIF so findings appear as
-inline PR annotations:
+The composite action is planned for M6. It will run the linter and emit SARIF so
+findings appear as inline pull-request annotations:
 
 ```yaml
 - uses: jedi-knights/nasm-lint@v1
@@ -126,10 +126,11 @@ inline PR annotations:
     sarif_file: results.sarif
 ```
 
-### Editor (LSP)
+### Editor language server
 
-*(Planned, M5.)* A language server (`nasmlint-lsp`) will provide inline diagnostics
-in any LSP-capable editor (Neovim, VS Code) using the same rules as the CLI.
+The language server (`nasmlint-lsp`) is planned for M5. It will provide inline
+diagnostics in any LSP-capable editor (Neovim, VS Code) using the same rules as the
+CLI.
 
 ## Configuration
 
@@ -146,8 +147,9 @@ NL001 = "must-fix"   # keep undefined labels as errors
 ignore = ["vendor/**", "third_party/**"]
 ```
 
-Valid rule settings: `off`, `must-fix`, `should-fix`, `consider` (the aliases
-`error`/`warning`/`note` are also accepted).
+Valid rule settings are `off`, `must-fix`, `should-fix`, and `consider`; the aliases
+`error`, `warning`, and `note` are also accepted. Defaults: all rules enabled at
+their built-in severity, no paths ignored, config discovered at `./.nasmlint.toml`.
 
 ## Severity model
 
@@ -164,7 +166,7 @@ fail CI on `must-fix` only, or tighten it to `should-fix`.
 
 ## Rule catalog
 
-Rules are grouped by `NL0xx` code. Codes are permanent identifiers. Those marked
+Rules are grouped by `NL0xx` code. Codes are permanent identifiers. Entries marked
 *(planned)* land in the milestone noted in the [Roadmap](#roadmap).
 
 | Code range | Category      | Examples |
@@ -176,8 +178,8 @@ Rules are grouped by `NL0xx` code. Codes are permanent identifiers. Those marked
 | `NL04x`    | Flow *(planned)* | dead code after `jmp`/`ret`, unbalanced `push`/`pop` |
 | `NL05x`    | Style          | mixed tabs/spaces, inconsistent casing, magic numbers, `NL053` trailing whitespace |
 
-Run `nasmlint --help` for the flags; the authoritative list of implemented codes is
-in `crates/nasmlint-core/src/rules/`.
+The authoritative list of implemented codes lives in
+`crates/nasmlint-core/src/rules/`.
 
 ## How it works
 
@@ -185,13 +187,24 @@ in `crates/nasmlint-core/src/rules/`.
 (`nasmlint-core`) that does no I/O, so the CLI and the future language server share
 every rule. The pipeline:
 
-```
-source → lex → parse → resolve symbols → [control-flow graph] → run rules → diagnostics
+```text
+source -> lex -> parse -> resolve symbols -> [control-flow graph] -> run rules -> diagnostics
 ```
 
 Each check is an independent `Rule` (the Strategy pattern), registered in one place.
 Instruction validation is bootstrapped from NASM's machine-readable `insns.dat`
-rather than a hand-coded table. See `CLAUDE.md` for the full architecture notes.
+rather than a hand-coded table. See the `CLAUDE.md` file for full architecture notes.
+
+## Development
+
+```bash
+cargo build --workspace                                  # build
+cargo test  --workspace --all-targets                    # test
+cargo clippy --workspace --all-targets -- -D warnings    # lint
+cargo fmt --all --check                                  # format check
+```
+
+CI runs `fmt`, `clippy`, and `test` as parallel jobs on every push and pull request.
 
 ## Roadmap
 
@@ -205,19 +218,7 @@ rather than a hand-coded table. See `CLAUDE.md` for the full architecture notes.
 | **M5** | Editor language server (`nasmlint-lsp`) |
 | **M6** | GitHub Action, cross-platform release binaries, Marketplace listing |
 
-Live task status lives in `TODO.md`.
-
-## Development
-
-```bash
-cargo build --workspace           # build
-cargo test  --workspace --all-targets   # test
-cargo clippy --workspace --all-targets -- -D warnings   # lint
-cargo fmt --all --check           # format check
-```
-
-CI runs `fmt`, `clippy`, and `test` as parallel jobs on every push and pull
-request.
+Live task status lives in the `TODO.md` file.
 
 ## Contributing
 
@@ -227,17 +228,17 @@ Contributions are welcome. Please:
    `type(scope)` (e.g. `feat(core):`, `fix(cli):`, `docs:`). If describing your
    change needs the word "and", split it.
 2. Add tests for new behavior; keep `fmt`, `clippy -D warnings`, and `test` clean.
-3. When adding a rule, follow the checklist in `CLAUDE.md` (implement `Rule`,
-   register it, pick the next free `NL0xx` code, document it here).
+3. When adding a rule, follow the checklist in the `CLAUDE.md` file (implement
+   `Rule`, register it, pick the next free `NL0xx` code, document it here).
 
 ## License
 
-Licensed under the [MIT License](LICENSE).
+Licensed under the MIT License; see the [LICENSE](LICENSE) file.
 
 ## Acknowledgements
 
 - [The Netwide Assembler (NASM)](https://www.nasm.us/) — instruction data derived
   from NASM's `insns.dat` (BSD-2-Clause) is vendored for instruction validation;
-  see [`THIRD_PARTY_LICENSES`](THIRD_PARTY_LICENSES).
-- Built with [`logos`](https://github.com/maciejhirsz/logos),
-  [`clap`](https://github.com/clap-rs/clap), and the Rust ecosystem.
+  see the [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) file.
+- Built with [logos](https://github.com/maciejhirsz/logos),
+  [clap](https://github.com/clap-rs/clap), and the Rust ecosystem.
