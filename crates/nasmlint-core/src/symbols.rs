@@ -40,7 +40,7 @@ pub struct MacroTable {
 }
 
 /// Preprocessor keywords (without the leading `%`) that introduce a name.
-fn keyword_defines_name(keyword: &str) -> bool {
+pub fn keyword_defines_name(keyword: &str) -> bool {
     let kw = keyword.trim_start_matches('%').to_ascii_lowercase();
     matches!(
         kw.as_str(),
