@@ -4,9 +4,10 @@
 //! this is where lexing → parsing → symbol resolution → CFG construction will be
 //! threaded, with the resulting model handed to rules via `Analysis`.
 
+use crate::analysis::{Analysis, Model};
 use crate::config::Config;
 use crate::diagnostics::Diagnostic;
-use crate::rules::{builtin_rules, Analysis};
+use crate::rules::builtin_rules;
 use crate::source::SourceFile;
 
 /// Analyze one file under `config`, returning findings sorted by position.
@@ -15,7 +16,9 @@ use crate::source::SourceFile;
 /// override or built-in default) before being collected, so downstream code
 /// never has to consult the config again.
 pub fn analyze(file: &SourceFile, config: &Config) -> Vec<Diagnostic> {
-    let analysis = Analysis { file };
+    // Build the front-end model once; every rule shares this borrowed view.
+    let model = Model::build(file);
+    let analysis = Analysis::new(file, &model);
     let mut diagnostics = Vec::new();
 
     for rule in builtin_rules() {

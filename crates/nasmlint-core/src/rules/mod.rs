@@ -6,22 +6,15 @@
 //! implementing the trait and registering the type in [`builtin_rules`] — nothing
 //! else in the pipeline changes.
 //!
-//! At M0 the only input a rule sees is the raw source (line text). As the front
-//! end lands (M1+), [`Analysis`] gains borrowed AST, symbol tables, and the CFG;
-//! existing rules keep compiling because they only read the fields they need.
+//! The input a rule sees is [`Analysis`] (defined in `crate::analysis`), which
+//! carries the raw source plus the parsed program and symbol/macro tables. It
+//! grows additively as milestones land (the CFG arrives at M4); existing rules
+//! keep compiling because they only read the fields they need.
 
+use crate::analysis::Analysis;
 use crate::diagnostics::{Diagnostic, Severity};
-use crate::source::SourceFile;
 
 mod style;
-
-/// Read-only view of everything a rule may inspect for one file.
-///
-/// Grows over time (AST, symbols, CFG) — always additively, so a rule written
-/// against an earlier shape keeps working.
-pub struct Analysis<'a> {
-    pub file: &'a SourceFile,
-}
 
 /// A single static-analysis check. Implementors are zero-sized and cheap to box.
 pub trait Rule: Send + Sync {
