@@ -128,9 +128,21 @@ findings appear as inline pull-request annotations:
 
 ### Editor language server
 
-The language server (`nasmlint-lsp`) is planned for M5. It will provide inline
-diagnostics in any LSP-capable editor (Neovim, VS Code) using the same rules as the
-CLI.
+The `nasmlint-lsp` binary is a Language Server that surfaces the same diagnostics
+inline in any LSP-capable editor (Neovim, VS Code), as you type, using the exact
+rules the CLI runs. Build it with `cargo build --release` (binary at
+`target/release/nasmlint-lsp`); it speaks LSP over stdio.
+
+Example Neovim registration:
+
+```lua
+vim.lsp.start({
+  name = "nasm-lint",
+  cmd = { "nasmlint-lsp" },
+  filetypes = { "asm", "nasm" },
+  root_dir = vim.fs.dirname(vim.fs.find({ ".git" }, { upward = true })[1]),
+})
+```
 
 ## Configuration
 
