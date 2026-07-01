@@ -2,8 +2,9 @@
 //! which makes them the natural first rules to land and the smoke test for the
 //! whole engine + renderer pipeline.
 
+use crate::analysis::Analysis;
 use crate::diagnostics::{Diagnostic, Severity, Span};
-use crate::rules::{Analysis, Rule};
+use crate::rules::Rule;
 
 /// NL053 — trailing whitespace at the end of a line.
 ///
@@ -50,11 +51,13 @@ impl Rule for TrailingWhitespace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analysis::Model;
     use crate::source::SourceFile;
 
     fn run(text: &str) -> Vec<Diagnostic> {
         let file = SourceFile::new("test.asm", text);
-        let analysis = Analysis { file: &file };
+        let model = Model::build(&file);
+        let analysis = Analysis::new(&file, &model);
         let mut out = Vec::new();
         TrailingWhitespace.check(&analysis, &mut out);
         out
