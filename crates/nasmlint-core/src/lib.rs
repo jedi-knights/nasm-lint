@@ -11,6 +11,7 @@
 
 pub mod analysis;
 pub mod ast;
+pub mod cfg;
 pub mod config;
 pub mod diagnostics;
 pub mod engine;
