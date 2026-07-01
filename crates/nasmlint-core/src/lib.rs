@@ -14,6 +14,7 @@ pub mod ast;
 pub mod config;
 pub mod diagnostics;
 pub mod engine;
+pub mod insns;
 pub mod keywords;
 pub mod lexer;
 pub mod parser;
