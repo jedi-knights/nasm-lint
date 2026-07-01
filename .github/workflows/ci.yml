@@ -13,25 +13,36 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: build · test · lint
+  # Formatting is a pure text check — no compilation — so it runs on its own and
+  # returns in seconds, independent of the build-bound jobs below.
+  fmt:
+    name: fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt
+      - run: cargo fmt --all --check
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+  # clippy and test each compile the workspace, so they are separate jobs that run
+  # in parallel; the shared cache keeps the second compile cheap.
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Format check
-        run: cargo fmt --all --check
-
-      - name: Clippy (warnings are errors)
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Test
-        run: cargo test --workspace --all-targets
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --all-targets
