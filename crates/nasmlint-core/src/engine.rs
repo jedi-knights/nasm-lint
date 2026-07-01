@@ -1,8 +1,10 @@
 //! Analysis pipeline: source + config in, sorted diagnostics out.
 //!
-//! At M0 the pipeline is just "run every enabled rule". As the front end lands,
-//! this is where lexing → parsing → symbol resolution → CFG construction will be
-//! threaded, with the resulting model handed to rules via `Analysis`.
+//! The pipeline builds the front-end model once (`Model::build`), runs every rule
+//! against the shared borrowed view, then applies config **per diagnostic code**:
+//! disabled codes are dropped and the rest are re-graded to their effective
+//! severity. Config is code-centric (not rule-centric) because a single rule may
+//! emit several codes — see the note in `rules/mod.rs`.
 
 use crate::analysis::{Analysis, Model};
 use crate::config::Config;
@@ -11,27 +13,22 @@ use crate::rules::builtin_rules;
 use crate::source::SourceFile;
 
 /// Analyze one file under `config`, returning findings sorted by position.
-///
-/// Each rule's findings are re-graded to their effective severity (config
-/// override or built-in default) before being collected, so downstream code
-/// never has to consult the config again.
 pub fn analyze(file: &SourceFile, config: &Config) -> Vec<Diagnostic> {
     // Build the front-end model once; every rule shares this borrowed view.
     let model = Model::build(file);
     let analysis = Analysis::new(file, &model);
+
     let mut diagnostics = Vec::new();
-
     for rule in builtin_rules() {
-        if !config.is_enabled(rule.code()) {
-            continue;
-        }
-        let effective = config.severity_for(rule.code(), rule.default_severity());
+        rule.run(&analysis, &mut diagnostics);
+    }
 
-        let before = diagnostics.len();
-        rule.check(&analysis, &mut diagnostics);
-        for diag in &mut diagnostics[before..] {
-            diag.severity = effective;
-        }
+    // Apply config by code: drop disabled codes, re-grade the rest. Each
+    // diagnostic already carries its rule's default severity, which is the base
+    // the override is applied against.
+    diagnostics.retain(|d| config.is_enabled(d.code));
+    for diag in &mut diagnostics {
+        diag.severity = config.severity_for(diag.code, diag.severity);
     }
 
     diagnostics.sort_by_key(|d| (d.span.line, d.span.column, d.code));
@@ -43,20 +40,24 @@ mod tests {
     use super::*;
     use crate::config::Config;
 
+    // A section directive keeps NL020 (code-before-section) quiet so these
+    // engine-mechanics tests see only the NL053 trailing-whitespace finding.
+    const ONE_NL053: &str = "section .text\n    ret  \n";
+
     #[test]
-    fn respects_disabled_rule() {
-        let file = SourceFile::new("t.asm", "ret  \n");
-        let mut config = Config::default();
+    fn respects_disabled_code() {
+        let file = SourceFile::new("t.asm", ONE_NL053);
+        let config = Config::default();
         assert_eq!(analyze(&file, &config).len(), 1);
 
-        config = Config::from_toml("[rules]\nNL053 = \"off\"\n").unwrap();
+        let config = Config::from_toml("[rules]\nNL053 = \"off\"\n").unwrap();
         assert!(analyze(&file, &config).is_empty());
     }
 
     #[test]
     fn applies_severity_override() {
         use crate::diagnostics::Severity;
-        let file = SourceFile::new("t.asm", "ret  \n");
+        let file = SourceFile::new("t.asm", ONE_NL053);
         let config = Config::from_toml("[rules]\nNL053 = \"must-fix\"\n").unwrap();
         let diags = analyze(&file, &config);
         assert_eq!(diags[0].severity, Severity::MustFix);

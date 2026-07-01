@@ -70,16 +70,15 @@ pub fn json(results: &[FileResult<'_>]) -> String {
 /// SARIF 2.1.0 log. Rule metadata is emitted for every code that appears in the
 /// results so consumers can render descriptions alongside findings.
 pub fn sarif(results: &[FileResult<'_>]) -> String {
-    use std::collections::BTreeMap;
+    use std::collections::BTreeSet;
 
-    // Deduplicate rule descriptors by code, preserving first-seen message as a
-    // stand-in description until richer metadata is wired through (M2+).
-    let mut rules: BTreeMap<&str, &str> = BTreeMap::new();
+    // Collect the distinct codes that appear so we emit one descriptor each.
+    let mut codes: BTreeSet<&str> = BTreeSet::new();
     let mut sarif_results = Vec::new();
 
     for file in results {
         for d in &file.diagnostics {
-            rules.entry(d.code).or_insert(d.message.as_str());
+            codes.insert(d.code);
             sarif_results.push(json!({
                 "ruleId": d.code,
                 "level": d.severity.sarif_level(),
@@ -98,9 +97,17 @@ pub fn sarif(results: &[FileResult<'_>]) -> String {
         }
     }
 
-    let rule_descriptors: Vec<Value> = rules
+    // Emit a descriptor per code, using the rule catalog for name + description.
+    let rule_descriptors: Vec<Value> = codes
         .iter()
-        .map(|(code, desc)| json!({ "id": code, "shortDescription": { "text": desc } }))
+        .map(|code| match nasmlint_core::rules::lookup(code) {
+            Some(info) => json!({
+                "id": info.code,
+                "name": info.name,
+                "shortDescription": { "text": info.description },
+            }),
+            None => json!({ "id": code }),
+        })
         .collect();
 
     let log = json!({
