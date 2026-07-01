@@ -1,0 +1,11 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+Cargo.lock.orig
+
+# Task tracking (per workflow convention — local only)
+TODO.md
+
+# Editor / OS cruft
+.DS_Store
+*.swp

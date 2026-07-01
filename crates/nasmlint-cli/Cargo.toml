@@ -1,0 +1,22 @@
+[package]
+name = "nasmlint-cli"
+description = "Command-line static analyzer for NASM assembly"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nasmlint"
+path = "src/main.rs"
+
+[dependencies]
+nasmlint-core = { path = "../nasmlint-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+walkdir = { workspace = true }
+globset = { workspace = true }
+anyhow = { workspace = true }
