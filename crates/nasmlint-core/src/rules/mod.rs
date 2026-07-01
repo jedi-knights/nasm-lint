@@ -17,6 +17,7 @@
 use crate::analysis::Analysis;
 use crate::diagnostics::{Diagnostic, Severity};
 
+mod flow;
 mod instructions;
 mod labels;
 mod preprocessor;
@@ -43,6 +44,7 @@ pub fn builtin_rules() -> Vec<Box<dyn Rule>> {
         Box::new(sections::CodeBeforeSection),
         Box::new(instructions::UnknownMnemonic),
         Box::new(instructions::OperandCount),
+        Box::new(flow::UnreachableCode),
         Box::new(style::MixedIndentation),
         Box::new(style::TrailingWhitespace),
     ]
@@ -133,6 +135,12 @@ pub fn catalog() -> &'static [RuleInfo] {
             name: "operand-count",
             description: "Instruction used with an operand count it never accepts.",
             default_severity: MustFix,
+        },
+        RuleInfo {
+            code: "NL040",
+            name: "unreachable-code",
+            description: "Code that cannot be reached along any control-flow path.",
+            default_severity: ShouldFix,
         },
         RuleInfo {
             code: "NL050",
