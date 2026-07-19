@@ -1,7 +1,7 @@
 # go-semantic-release configuration for nasm-lint.
 # Phase 1 of the two-phase release pipeline:
 #   1. Analyze conventional commits → determine the next semantic version
-#   2. Write CHANGELOG.md and VERSION
+#   2. Write CHANGELOG.md, VERSION, Cargo.toml and Cargo.lock
 #   3. Commit those back to main with [skip ci]
 #   4. Push the git tag (e.g. v0.2.0)
 #
@@ -25,6 +25,19 @@ branches:
 prepare:
   changelog_file: CHANGELOG.md
   version_file: VERSION
+
+# Cargo awareness (go-semantic-release >= v0.11.0) auto-detects the workspace and
+# bumps [workspace.package] version in Cargo.toml plus each local crate's version
+# in Cargo.lock — no Rust toolchain required. git.assets commits those (with
+# CHANGELOG.md/VERSION) with [skip ci] before the tag, so the tag points at the
+# release commit.
+git:
+  assets:
+    - CHANGELOG.md
+    - VERSION
+    - Cargo.toml
+    - Cargo.lock
+  message: "chore(release): {{.Version}} [skip ci]\n\n{{.Notes}}"
 
 # The Dist workflow (taiki-e) owns GitHub Release creation and asset uploads;
 # semantic-release only creates the tag.
